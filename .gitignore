@@ -1,0 +1,29 @@
+# Python
+venv/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Secrets (never commit)
+.env
+.env.*
+!.env.example
+*.jks
+*.keystore
+key.properties
+google-services.json
+
+# Flutter / Android
+build/
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+local.properties
+.idea/
+*.iml
+
+# OS / editor
+Thumbs.db
+.DS_Store
+.vscode/
