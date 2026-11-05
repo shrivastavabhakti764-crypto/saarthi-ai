@@ -5,6 +5,15 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
+def normalise_indian_phone(v: str) -> str:
+    digits = re.sub(r"\D", "", v)  # keep digits only
+    if len(digits) == 12 and digits.startswith("91"):
+        digits = digits[2:]
+    if len(digits) == 10 and digits[0] in "6789":
+        return "+91" + digits
+    raise ValueError("enter a valid 10-digit Indian mobile number")
+
+
 class RegisterRequest(BaseModel):
     name: str = Field(min_length=1, max_length=100)
     phone: str
@@ -22,12 +31,17 @@ class RegisterRequest(BaseModel):
     @field_validator("phone")
     @classmethod
     def normalise_phone(cls, v: str) -> str:
-        digits = re.sub(r"\D", "", v)  # keep digits only
-        if len(digits) == 12 and digits.startswith("91"):
-            digits = digits[2:]
-        if len(digits) == 10 and digits[0] in "6789":
-            return "+91" + digits
-        raise ValueError("enter a valid 10-digit Indian mobile number")
+        return normalise_indian_phone(v)
+
+
+class LoginRequest(BaseModel):
+    phone: str
+    pin: str = Field(pattern=r"^\d{4,6}$")
+
+    @field_validator("phone")
+    @classmethod
+    def normalise_phone(cls, v: str) -> str:
+        return normalise_indian_phone(v)
 
 
 class UserOut(BaseModel):
