@@ -23,21 +23,26 @@ class AuthProvider extends ChangeNotifier {
 
   /// Called once at app start: if a token is saved and still valid, log in silently.
   Future<void> restoreSession() async {
-    final saved = await _tokenStore.read();
-    if (saved != null) {
-      try {
-        _user = await _api.me(saved);
-        _token = saved;
-      } on ApiException catch (e) {
-        // Only an explicit "unauthorized" means the token is useless.
-        // A network error keeps it, so the next launch can try again.
-        if (e.statusCode == 401) await _tokenStore.clear();
+    try {
+      final saved = await _tokenStore.read();
+      if (saved != null) {
+        try {
+          _user = await _api.me(saved);
+          _token = saved;
+        } on ApiException catch (e) {
+          // Only an explicit "unauthorized" means the token is useless.
+          // A network error keeps it, so the next launch can try again.
+          if (e.statusCode == 401) await _tokenStore.clear();
+        }
       }
+    } catch (_) {
+      // Saved token could not be read: carry on logged out instead of
+      // freezing on the loading screen.
+    } finally {
+      _restored = true;
+      notifyListeners();
     }
-    _restored = true;
-    notifyListeners();
   }
-
   Future<void> register({
     required String name,
     required String phone,
