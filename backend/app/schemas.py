@@ -2,7 +2,13 @@ import re
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_validator,
+    model_validator,
+)
 
 
 def normalise_indian_phone(v: str) -> str:
@@ -59,3 +65,48 @@ class AuthResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user: UserOut
+
+
+class LinkCodeOut(BaseModel):
+    code: str
+    expires_at: datetime
+
+
+class RedeemRequest(BaseModel):
+    code: str = Field(pattern=r"^\d{6}$")
+    relationship: str = Field(min_length=1, max_length=50)
+    whatsapp_number: str | None = None
+    whatsapp_opt_in: bool = False
+
+    @field_validator("relationship")
+    @classmethod
+    def clean_relationship(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("relationship cannot be empty")
+        return v
+
+    @field_validator("whatsapp_number")
+    @classmethod
+    def normalise_whatsapp(cls, v: str | None) -> str | None:
+        if v is None or not v.strip():
+            return None
+        return normalise_indian_phone(v)
+
+    @model_validator(mode="after")
+    def opt_in_needs_a_number(self):
+        if self.whatsapp_opt_in and self.whatsapp_number is None:
+            raise ValueError("a WhatsApp number is needed to opt in")
+        return self
+
+
+class LinkOut(BaseModel):
+    id: int
+    senior_id: int
+    senior_name: str
+    nominee_id: int
+    nominee_name: str
+    relationship: str
+    whatsapp_number: str | None
+    whatsapp_opt_in: bool
+    created_at: datetime
