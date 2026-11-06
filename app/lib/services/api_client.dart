@@ -109,4 +109,14 @@ class ApiClient {
     );
     return AppUser.fromJson(json);
   }
+
+  Future<AppUser> acceptConsent(String token) async {
+    final json = await _request(
+      () => _client.post(
+        _uri('/me/consent'),
+        headers: {'Authorization': 'Bearer $token'},
+      ),
+    );
+    return AppUser.fromJson(json);
+  }
 }

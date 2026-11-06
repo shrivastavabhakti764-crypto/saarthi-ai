@@ -43,6 +43,7 @@ class AuthProvider extends ChangeNotifier {
       notifyListeners();
     }
   }
+
   Future<void> register({
     required String name,
     required String phone,
@@ -61,6 +62,14 @@ class AuthProvider extends ChangeNotifier {
   Future<void> login({required String phone, required String pin}) async {
     final result = await _api.login(phone: phone, pin: pin);
     await _signIn(result);
+  }
+
+  /// A senior agrees to share health mentions with their nominee.
+  Future<void> acceptConsent() async {
+    final token = _token;
+    if (token == null) return;
+    _user = await _api.acceptConsent(token);
+    notifyListeners();
   }
 
   Future<void> logout() async {
