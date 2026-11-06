@@ -6,6 +6,7 @@ import '../models/user_role.dart';
 import '../services/api_client.dart';
 import '../services/auth_provider.dart';
 import '../theme/app_theme.dart';
+import 'login_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key, required this.role});
@@ -164,6 +165,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           child: CircularProgressIndicator(strokeWidth: 3),
                         )
                       : const Text('Create account'),
+                ),
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: _busy
+                      ? null
+                      : () => Navigator.of(context).pushReplacement(
+                            MaterialPageRoute(
+                                builder: (_) => const LoginScreen()),
+                          ),
+                  child: const Text('Already have an account? Log in'),
                 ),
               ],
             ),

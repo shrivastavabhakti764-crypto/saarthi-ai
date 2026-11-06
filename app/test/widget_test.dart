@@ -58,4 +58,20 @@ void main() {
     expect(find.text('Enter a 10-digit mobile number'), findsOneWidget);
     expect(find.text('PIN must be 4 to 6 digits'), findsOneWidget);
   });
+  testWidgets('log in link opens the login screen and checks its fields',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(SaarthiApp(auth: await _loggedOutAuth(tester)));
+
+    await tester.ensureVisible(find.text('Already have an account? Log in'));
+    await tester.tap(find.text('Already have an account? Log in'));
+    await tester.pumpAndSettle();
+    expect(find.text('Welcome back'), findsOneWidget);
+
+    await tester.ensureVisible(find.text('Log in'));
+    await tester.tap(find.text('Log in'));
+    await tester.pump();
+
+    expect(find.text('Enter a 10-digit mobile number'), findsOneWidget);
+    expect(find.text('PIN must be 4 to 6 digits'), findsOneWidget);
+  }); 
 }

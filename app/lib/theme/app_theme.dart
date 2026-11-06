@@ -90,6 +90,13 @@ ThemeData buildAppTheme() {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
     ),
+        textButtonTheme: TextButtonThemeData(
+      style: TextButton.styleFrom(
+        foregroundColor: AppColors.textDark,
+        textStyle: textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w700),
+        minimumSize: const Size.fromHeight(56),
+      ),
+    ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: Colors.white,

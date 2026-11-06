@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/user_role.dart';
 import '../theme/app_theme.dart';
+import 'login_screen.dart';
 import 'register_screen.dart';
 
 class RoleSelectionScreen extends StatelessWidget {
@@ -43,6 +44,13 @@ class RoleSelectionScreen extends StatelessWidget {
               title: UserRole.nominee.label,
               subtitle: 'I want to look after someone I love',
               onTap: () => _select(context, UserRole.nominee),
+            ),
+            const SizedBox(height: 24),
+            TextButton(
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const LoginScreen()),
+              ),
+              child: const Text('Already have an account? Log in'),
             ),
           ],
         ),
