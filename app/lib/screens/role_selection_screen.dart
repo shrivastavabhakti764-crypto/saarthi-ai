@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../services/api_client.dart';
 import '../theme/app_theme.dart';
 
 enum UserRole { senior, nominee }
@@ -8,10 +9,27 @@ class RoleSelectionScreen extends StatelessWidget {
   const RoleSelectionScreen({super.key});
 
   void _select(BuildContext context, UserRole role) {
-    // Temporary: the register/login screen is wired in the next step.
+    // Temporary: the register/login screen is wired in a later step.
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('Selected: ${role.name}')),
     );
+  }
+
+  // Temporary connectivity test, removed once login is wired.
+  Future<void> _checkServer(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final result = await ApiClient().health();
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            'Server: ${result['status']}, database: ${result['database']}',
+          ),
+        ),
+      );
+    } on ApiException catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(e.message)));
+    }
   }
 
   @override
@@ -44,6 +62,11 @@ class RoleSelectionScreen extends StatelessWidget {
               title: 'Nominee (Family Member)',
               subtitle: 'I want to look after someone I love',
               onTap: () => _select(context, UserRole.nominee),
+            ),
+            const SizedBox(height: 32),
+            TextButton(
+              onPressed: () => _checkServer(context),
+              child: const Text('Check server (temporary)'),
             ),
           ],
         ),
