@@ -2,7 +2,7 @@ import math
 import secrets
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -125,3 +125,38 @@ def redeem_link_code(
     rate_limit.reset(key)
     db.refresh(link)
     return link_out(db, link)
+
+
+@router.get("", response_model=list[LinkOut])
+def list_links(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """A senior sees their nominees; a nominee sees the seniors they look after."""
+    if current_user.role == "senior":
+        condition = NomineeLink.senior_id == current_user.id
+    else:
+        condition = NomineeLink.nominee_id == current_user.id
+    links = db.scalars(
+        select(NomineeLink)
+        .where(condition)
+        .order_by(NomineeLink.created_at, NomineeLink.id)
+    ).all()
+    return [link_out(db, link) for link in links]
+
+
+@router.delete("/{link_id}", status_code=status.HTTP_204_NO_CONTENT)
+def unlink(
+    link_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Either side can end a link. Other people get 404, as if it did not exist."""
+    link = db.get(NomineeLink, link_id)
+    if link is None or current_user.id not in (link.senior_id, link.nominee_id):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Link not found"
+        )
+    db.delete(link)
+    db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
