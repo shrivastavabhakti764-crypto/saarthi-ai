@@ -7,6 +7,7 @@ import 'screens/auth_gate.dart';
 import 'services/api_client.dart';
 import 'services/auth_provider.dart';
 import 'services/links_provider.dart';
+import 'services/reminders_provider.dart';
 import 'services/token_store.dart';
 import 'theme/app_theme.dart';
 
@@ -15,15 +16,22 @@ void main() {
   final api = ApiClient();
   final auth = AuthProvider(api: api, tokenStore: SecureTokenStore());
   final links = LinksProvider(api: api, auth: auth);
+  final reminders = RemindersProvider(api: api, auth: auth);
   unawaited(auth.restoreSession());
-  runApp(SaarthiApp(auth: auth, links: links));
+  runApp(SaarthiApp(auth: auth, links: links, reminders: reminders));
 }
 
 class SaarthiApp extends StatelessWidget {
-  const SaarthiApp({super.key, required this.auth, required this.links});
+  const SaarthiApp({
+    super.key,
+    required this.auth,
+    required this.links,
+    required this.reminders,
+  });
 
   final AuthProvider auth;
   final LinksProvider links;
+  final RemindersProvider reminders;
 
   @override
   Widget build(BuildContext context) {
@@ -31,6 +39,7 @@ class SaarthiApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider<AuthProvider>.value(value: auth),
         ChangeNotifierProvider<LinksProvider>.value(value: links),
+        ChangeNotifierProvider<RemindersProvider>.value(value: reminders),
       ],
       child: MaterialApp(
         title: 'Saarthi.AI',
