@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import '../config.dart';
 import '../models/app_user.dart';
 import '../models/link.dart';
+import '../models/reminder.dart';
 
 class ApiException implements Exception {
   ApiException(this.message, {this.statusCode});
@@ -84,6 +85,8 @@ class ApiClient {
   Future<Map<String, dynamic>> health() =>
       _request(() => _client.get(_uri('/health')));
 
+  // ---- account ----
+
   Future<AuthResult> register({
     required String name,
     required String phone,
@@ -133,6 +136,8 @@ class ApiClient {
     return AppUser.fromJson(json);
   }
 
+  // ---- links ----
+
   Future<LinkCode> createLinkCode(String token) async {
     final json = await _request(
       () => _client.post(_uri('/links/code'), headers: _bearer(token)),
@@ -175,5 +180,85 @@ class ApiClient {
     await _send(
       () => _client.delete(_uri('/links/$linkId'), headers: _bearer(token)),
     );
+  }
+
+  // ---- reminders ----
+
+  Future<Reminder> createReminder(
+    String token,
+    ReminderDraft draft, {
+    int? seniorId,
+  }) async {
+    final json = await _request(
+      () => _client.post(
+        _uri('/reminders'),
+        headers: {..._jsonHeaders, ..._bearer(token)},
+        body: jsonEncode(draft.toJson(seniorId: seniorId)),
+      ),
+    );
+    return Reminder.fromJson(json);
+  }
+
+  Future<List<Reminder>> listReminders(String token, {int? seniorId}) async {
+    final path =
+        seniorId == null ? '/reminders' : '/reminders?senior_id=$seniorId';
+    final list = await _requestList(
+      () => _client.get(_uri(path), headers: _bearer(token)),
+    );
+    return list
+        .map((item) => Reminder.fromJson(item as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<Reminder> updateReminder(
+    String token,
+    int reminderId,
+    ReminderDraft draft,
+  ) async {
+    final json = await _request(
+      () => _client.put(
+        _uri('/reminders/$reminderId'),
+        headers: {..._jsonHeaders, ..._bearer(token)},
+        body: jsonEncode(draft.toJson()),
+      ),
+    );
+    return Reminder.fromJson(json);
+  }
+
+  Future<void> deleteReminder(String token, int reminderId) async {
+    await _send(
+      () => _client.delete(
+        _uri('/reminders/$reminderId'),
+        headers: _bearer(token),
+      ),
+    );
+  }
+
+  Future<List<TodaySlot>> todaySlots(String token) async {
+    final list = await _requestList(
+      () => _client.get(_uri('/reminders/today'), headers: _bearer(token)),
+    );
+    return list
+        .map((item) => TodaySlot.fromJson(item as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<TodaySlot> logSlot(
+    String token, {
+    required int reminderId,
+    required DateTime scheduledFor,
+    required String status,
+  }) async {
+    final json = await _request(
+      () => _client.post(
+        _uri('/reminders/$reminderId/log'),
+        headers: {..._jsonHeaders, ..._bearer(token)},
+        body: jsonEncode({
+          'scheduled_for': scheduledFor.toUtc().toIso8601String(),
+          'status': status,
+        }),
+      ),
+    );
+    return TodaySlot.fromJson(json);
   }
 }
