@@ -4,6 +4,7 @@ import 'package:timezone/data/latest.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
 
 import '../models/reminder.dart';
+import 'notification_answers.dart';
 import 'reminder_scheduler.dart';
 import 'schedule_planner.dart';
 
@@ -15,15 +16,43 @@ class NotificationService implements ReminderScheduler {
   final FlutterLocalNotificationsPlugin _plugin;
   bool _ready = false;
 
-  static const _android = AndroidNotificationDetails(
-    'reminders',
-    'Reminders',
-    channelDescription: 'Medicine and appointment reminders',
-    importance: Importance.max,
-    priority: Priority.high,
+  static const _medicineDetails = NotificationDetails(
+    android: AndroidNotificationDetails(
+      'reminders',
+      'Reminders',
+      channelDescription: 'Medicine and appointment reminders',
+      importance: Importance.max,
+      priority: Priority.high,
+      actions: [
+        AndroidNotificationAction('taken', 'I took it'),
+        AndroidNotificationAction('skipped', 'Skip'),
+      ],
+    ),
   );
 
-  static const _details = NotificationDetails(android: _android);
+  static const _appointmentDetails = NotificationDetails(
+    android: AndroidNotificationDetails(
+      'reminders',
+      'Reminders',
+      channelDescription: 'Medicine and appointment reminders',
+      importance: Importance.max,
+      priority: Priority.high,
+      actions: [
+        AndroidNotificationAction('taken', 'I went'),
+        AndroidNotificationAction('skipped', 'Skip'),
+      ],
+    ),
+  );
+
+  static const _plainDetails = NotificationDetails(
+    android: AndroidNotificationDetails(
+      'reminders',
+      'Reminders',
+      channelDescription: 'Medicine and appointment reminders',
+      importance: Importance.max,
+      priority: Priority.high,
+    ),
+  );
 
   /// Call once at app start, before anything is scheduled.
   Future<void> init() async {
@@ -35,6 +64,8 @@ class NotificationService implements ReminderScheduler {
       settings: const InitializationSettings(
         android: AndroidInitializationSettings('@mipmap/ic_launcher'),
       ),
+      onDidReceiveNotificationResponse: notificationTapHandler,
+      onDidReceiveBackgroundNotificationResponse: notificationBackgroundHandler,
     );
     _ready = true;
   }
@@ -80,7 +111,9 @@ class NotificationService implements ReminderScheduler {
           body: item.body,
           payload: item.payload,
           scheduledDate: tz.TZDateTime.from(item.at, tz.local),
-          notificationDetails: _details,
+          notificationDetails: item.kind == 'medicine'
+              ? _medicineDetails
+              : _appointmentDetails,
           androidScheduleMode: _mode(exact: exact),
           matchDateTimeComponents: repeat,
         );
@@ -106,7 +139,7 @@ class NotificationService implements ReminderScheduler {
       title: 'Test reminder',
       body: 'If you can see this, your reminders will reach you.',
       scheduledDate: tz.TZDateTime.now(tz.local).add(const Duration(seconds: 10)),
-      notificationDetails: _details,
+      notificationDetails: _plainDetails,
       androidScheduleMode: _mode(exact: exact),
     );
   }

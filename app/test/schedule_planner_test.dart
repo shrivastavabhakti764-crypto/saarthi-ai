@@ -40,6 +40,7 @@ void main() {
     expect(plan, hasLength(2));
     // 08:00 has passed today, so the first ring is tomorrow morning.
     expect(plan[0].id, 1000);
+    expect(plan[0].kind, 'medicine');
     expect(plan[0].at, DateTime.utc(2026, 11, 10, 2, 30));
     expect(plan[0].repeat, Repeat.daily);
     expect(plan[0].title, 'Time for your medicine');
@@ -113,6 +114,7 @@ void main() {
 
     expect(plan, hasLength(1));
     expect(plan.single.id, 2999);
+    expect(plan.single.kind, 'appointment');
     expect(plan.single.title, 'Appointment');
     expect(plan.single.body, 'Doctor visit');
     expect(plan.single.at, future);
@@ -137,5 +139,83 @@ void main() {
     final ids = plan.map((n) => n.id).toSet();
     expect(plan, hasLength(3 + 3 + 1));
     expect(ids, hasLength(plan.length));
+  });
+
+  group('answerFromTap', () {
+    test('a button right after a daily alarm answers today\'s slot', () {
+      // 10:06:05 in India on 11 November.
+      final tap = DateTime.utc(2026, 11, 11, 4, 36, 5);
+
+      final target = answerFromTap(
+        actionId: 'taken',
+        payload: jsonEncode({'reminder_id': 1, 'hm': '10:06'}),
+        now: tap,
+      );
+
+      expect(target, isNotNull);
+      expect(target!.reminderId, 1);
+      expect(target.status, 'taken');
+      expect(target.scheduledFor, DateTime.utc(2026, 11, 11, 4, 36));
+    });
+
+    test('a button pressed after midnight answers last night\'s alarm', () {
+      // 00:10 in India on 12 November, for the 23:50 alarm of the 11th.
+      final tap = DateTime.utc(2026, 11, 11, 18, 40);
+
+      final target = answerFromTap(
+        actionId: 'skipped',
+        payload: jsonEncode({'reminder_id': 4, 'hm': '23:50'}),
+        now: tap,
+      );
+
+      expect(target!.status, 'skipped');
+      expect(target.scheduledFor, DateTime.utc(2026, 11, 11, 18, 20));
+    });
+
+    test('an appointment answers its own moment', () {
+      final target = answerFromTap(
+        actionId: 'taken',
+        payload: jsonEncode({
+          'reminder_id': 2,
+          'at': '2026-11-12T09:30:00.000Z',
+        }),
+        now: DateTime.utc(2026, 11, 12, 9, 31),
+      );
+
+      expect(target!.reminderId, 2);
+      expect(target.scheduledFor, DateTime.utc(2026, 11, 12, 9, 30));
+    });
+
+    test('anything that is not a Taken/Skipped button is ignored', () {
+      final payload = jsonEncode({'reminder_id': 1, 'hm': '08:00'});
+      final tap = DateTime.utc(2026, 11, 11, 4, 36);
+
+      expect(answerFromTap(actionId: null, payload: payload, now: tap), isNull);
+      expect(answerFromTap(actionId: 'open', payload: payload, now: tap), isNull);
+      expect(answerFromTap(actionId: 'taken', payload: null, now: tap), isNull);
+      expect(answerFromTap(actionId: 'taken', payload: '', now: tap), isNull);
+    });
+
+    test('a payload we do not understand is ignored', () {
+      final tap = DateTime.utc(2026, 11, 11, 4, 36);
+
+      expect(answerFromTap(actionId: 'taken', payload: 'not json', now: tap), isNull);
+      expect(
+        answerFromTap(
+          actionId: 'taken',
+          payload: jsonEncode({'reminder_id': 'one', 'hm': '08:00'}),
+          now: tap,
+        ),
+        isNull,
+      );
+      expect(
+        answerFromTap(
+          actionId: 'taken',
+          payload: jsonEncode({'reminder_id': 1}),
+          now: tap,
+        ),
+        isNull,
+      );
+    });
   });
 }

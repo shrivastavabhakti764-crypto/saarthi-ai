@@ -8,6 +8,7 @@ enum Repeat { once, daily, weekly }
 class PlannedNotification {
   const PlannedNotification({
     required this.id,
+    required this.kind,
     required this.title,
     required this.body,
     required this.payload,
@@ -16,6 +17,9 @@ class PlannedNotification {
   });
 
   final int id;
+
+  /// 'medicine' or 'appointment' (decides which buttons the alarm shows).
+  final String kind;
   final String title;
   final String body;
 
@@ -54,6 +58,20 @@ DateTime nextMoment(DateTime now, String hm, {int? isoWeekday}) {
   throw StateError('No next moment found for $hm');
 }
 
+/// The latest moment (UTC) at or before [now] when the Indian clock showed
+/// [hm]. A button pressed just after midnight still answers last night's alarm.
+DateTime latestMoment(DateTime now, String hm) {
+  final parts = hm.split(':');
+  final hour = int.parse(parts[0]);
+  final minute = int.parse(parts[1]);
+  final nowIst = now.toUtc().add(_ist);
+  var candidate = DateTime.utc(nowIst.year, nowIst.month, nowIst.day, hour, minute);
+  if (candidate.isAfter(nowIst)) {
+    candidate = candidate.subtract(const Duration(days: 1));
+  }
+  return candidate.subtract(_ist);
+}
+
 /// Works out every alarm for these reminders. Paused reminders and past
 /// appointments get none.
 List<PlannedNotification> planNotifications(
@@ -74,6 +92,7 @@ List<PlannedNotification> planNotifications(
         if (everyDay) {
           plan.add(PlannedNotification(
             id: notificationId(reminder.id, i, 0),
+            kind: 'medicine',
             title: 'Time for your medicine',
             body: body,
             payload: payload,
@@ -84,6 +103,7 @@ List<PlannedNotification> planNotifications(
           for (final day in reminder.days) {
             plan.add(PlannedNotification(
               id: notificationId(reminder.id, i, day),
+              kind: 'medicine',
               title: 'Time for your medicine',
               body: body,
               payload: payload,
@@ -98,6 +118,7 @@ List<PlannedNotification> planNotifications(
       if (at == null || !at.isAfter(now)) continue;
       plan.add(PlannedNotification(
         id: reminder.id * 1000 + 999,
+        kind: 'appointment',
         title: 'Appointment',
         body: reminder.title,
         payload: jsonEncode({
@@ -110,4 +131,56 @@ List<PlannedNotification> planNotifications(
     }
   }
   return plan;
+}
+
+/// Which slot a notification button answers, and with what.
+class AnswerTarget {
+  const AnswerTarget({
+    required this.reminderId,
+    required this.scheduledFor,
+    required this.status,
+  });
+
+  final int reminderId;
+  final DateTime scheduledFor;
+
+  /// 'taken' or 'skipped'.
+  final String status;
+}
+
+/// Reads a tap on a notification. Returns null for anything that is not a
+/// Taken/Skipped button (like a tap on the notification itself) or a payload
+/// we do not understand.
+AnswerTarget? answerFromTap({
+  required String? actionId,
+  required String? payload,
+  required DateTime now,
+}) {
+  final status = actionId;
+  if (status == null || (status != 'taken' && status != 'skipped')) return null;
+  if (payload == null || payload.isEmpty) return null;
+  try {
+    final data = jsonDecode(payload);
+    if (data is! Map<String, dynamic>) return null;
+    final reminderId = data['reminder_id'];
+    if (reminderId is! int) return null;
+
+    final at = data['at'];
+    if (at is String) {
+      return AnswerTarget(
+        reminderId: reminderId,
+        scheduledFor: DateTime.parse(at).toUtc(),
+        status: status,
+      );
+    }
+    final hm = data['hm'];
+    if (hm is! String) return null;
+    return AnswerTarget(
+      reminderId: reminderId,
+      scheduledFor: latestMoment(now, hm),
+      status: status,
+    );
+  } on FormatException {
+    return null;
+  }
 }

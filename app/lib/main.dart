@@ -7,6 +7,7 @@ import 'screens/auth_gate.dart';
 import 'services/api_client.dart';
 import 'services/auth_provider.dart';
 import 'services/links_provider.dart';
+import 'services/notification_answers.dart';
 import 'services/notification_service.dart';
 import 'services/reminders_provider.dart';
 import 'services/token_store.dart';
@@ -28,6 +29,10 @@ Future<void> main() async {
   final links = LinksProvider(api: api, auth: auth);
   final reminders =
       RemindersProvider(api: api, auth: auth, scheduler: notifications);
+
+  // After a Taken/Skipped button press, refresh the Today list on screen.
+  onNotificationAnswered = () => unawaited(reminders.load());
+
   unawaited(auth.restoreSession());
   runApp(SaarthiApp(auth: auth, links: links, reminders: reminders));
 }
