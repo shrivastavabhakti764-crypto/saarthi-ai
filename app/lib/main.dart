@@ -33,7 +33,16 @@ Future<void> main() async {
   // After a Taken/Skipped button press, refresh the Today list on screen.
   onNotificationAnswered = () => unawaited(reminders.load());
 
-  unawaited(auth.restoreSession());
+  // Answers given while the server was out of reach are sent now, and again
+  // every time the app comes back to the front.
+  Future<void> sendKeptAnswers() async {
+    final sent = await flushPendingAnswers(api: api);
+    if (sent > 0) unawaited(reminders.load());
+  }
+
+  AppLifecycleListener(onResume: () => unawaited(sendKeptAnswers()));
+  unawaited(auth.restoreSession().then((_) => sendKeptAnswers()));
+
   runApp(SaarthiApp(auth: auth, links: links, reminders: reminders));
 }
 
