@@ -1,22 +1,34 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import '../models/reminder.dart';
 import 'api_client.dart';
 import 'auth_provider.dart';
+import 'reminder_scheduler.dart';
 
 /// Reminders, and (for a senior) today's schedule with Taken/Skipped answers.
+/// A senior's reminders are also put on the phone's alarm clock.
 class RemindersProvider extends ChangeNotifier {
-  RemindersProvider({required this._api, required this._auth}) {
+  RemindersProvider({
+    required this._api,
+    required this._auth,
+    ReminderScheduler? scheduler,
+  }) : _scheduler = scheduler ?? const NoopReminderScheduler() {
+    _wasLoggedIn = _auth.isLoggedIn;
     _auth.addListener(_onAuthChanged);
   }
 
   final ApiClient _api;
   final AuthProvider _auth;
+  final ReminderScheduler _scheduler;
 
   List<Reminder> _reminders = const [];
   List<TodaySlot> _today = const [];
   bool _loading = false;
   String? _error;
+  bool _wasLoggedIn = false;
+  bool _askedPermission = false;
 
   List<Reminder> get reminders => _reminders;
   List<TodaySlot> get today => _today;
@@ -31,9 +43,18 @@ class RemindersProvider extends ChangeNotifier {
     return token;
   }
 
-  /// When the user logs out, forget everything about their reminders.
   void _onAuthChanged() {
-    if (!_auth.isLoggedIn && (_reminders.isNotEmpty || _today.isNotEmpty)) {
+    if (_auth.isLoggedIn) {
+      _wasLoggedIn = true;
+      return;
+    }
+    // Remove the alarms only on a real logout. At app start the server may be
+    // unreachable (so nobody looks logged in yet) and reminders must keep ringing.
+    if (_wasLoggedIn) {
+      _wasLoggedIn = false;
+      unawaited(_clearAlarms());
+    }
+    if (_reminders.isNotEmpty || _today.isNotEmpty) {
       _reminders = const [];
       _today = const [];
       _error = null;
@@ -41,15 +62,51 @@ class RemindersProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> _clearAlarms() async {
+    try {
+      await _scheduler.clear();
+    } catch (e) {
+      debugPrint('Could not clear alarms: $e');
+    }
+  }
+
+  /// Alarms are best effort: a problem here never breaks the screens.
+  Future<void> _syncAlarms() async {
+    if (!_isSenior) return;
+    try {
+      await _scheduler.sync(_reminders);
+    } catch (e) {
+      debugPrint('Could not set alarms: $e');
+    }
+  }
+
+  Future<void> _askPermissionOnce() async {
+    if (_askedPermission) return;
+    _askedPermission = true;
+    try {
+      await _scheduler.requestPermission();
+    } catch (e) {
+      debugPrint('Could not ask for notification permission: $e');
+    }
+  }
+
+  Future<bool> requestNotificationPermission() => _scheduler.requestPermission();
+
+  Future<void> sendTestNotification() => _scheduler.sendTest();
+
   /// Reloads the reminders (a nominee may pick one senior) and, for a senior,
-  /// today's schedule. A failure is kept in [error] so a screen can show it.
+  /// today's schedule and the phone's alarms. A failure is kept in [error].
   Future<void> load({int? seniorId}) async {
     _loading = true;
     _error = null;
     notifyListeners();
     try {
       _reminders = await _api.listReminders(_token(), seniorId: seniorId);
-      if (_isSenior) _today = await _api.todaySlots(_token());
+      if (_isSenior) {
+        unawaited(_askPermissionOnce());
+        await _syncAlarms();
+        _today = await _api.todaySlots(_token());
+      }
     } on ApiException catch (e) {
       _error = e.message;
     } finally {
@@ -75,6 +132,7 @@ class RemindersProvider extends ChangeNotifier {
         await _api.createReminder(_token(), draft, seniorId: seniorId);
     _reminders = [..._reminders, reminder];
     notifyListeners();
+    await _syncAlarms();
     await _refreshToday();
     return reminder;
   }
@@ -85,6 +143,7 @@ class RemindersProvider extends ChangeNotifier {
       for (final r in _reminders) if (r.id == reminderId) updated else r,
     ];
     notifyListeners();
+    await _syncAlarms();
     await _refreshToday();
     return updated;
   }
@@ -93,6 +152,7 @@ class RemindersProvider extends ChangeNotifier {
     await _api.deleteReminder(_token(), reminderId);
     _reminders = _reminders.where((r) => r.id != reminderId).toList();
     notifyListeners();
+    await _syncAlarms();
     await _refreshToday();
   }
 

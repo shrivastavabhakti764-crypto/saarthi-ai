@@ -36,6 +36,27 @@ class _RemindersScreenState extends State<RemindersScreen> {
     );
   }
 
+  Future<void> _sendTest() async {
+    final reminders = context.read<RemindersProvider>();
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await reminders.requestNotificationPermission();
+      await reminders.sendTestNotification();
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text(
+            'A test reminder will arrive in 10 seconds. '
+            'Lock your phone or go to the home screen.',
+          ),
+        ),
+      );
+    } catch (_) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Could not set the test reminder.')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final reminders = context.watch<RemindersProvider>();
@@ -73,6 +94,13 @@ class _RemindersScreenState extends State<RemindersScreen> {
                 onPressed: () => _open(null),
                 child: const Text('Add a reminder'),
               ),
+              if (widget.seniorId == null) ...[
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: _sendTest,
+                  child: const Text('Send a test reminder'),
+                ),
+              ],
             ],
           ),
         ),

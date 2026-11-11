@@ -7,16 +7,27 @@ import 'screens/auth_gate.dart';
 import 'services/api_client.dart';
 import 'services/auth_provider.dart';
 import 'services/links_provider.dart';
+import 'services/notification_service.dart';
 import 'services/reminders_provider.dart';
 import 'services/token_store.dart';
 import 'theme/app_theme.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  final notifications = NotificationService();
+  try {
+    await notifications.init();
+  } catch (e) {
+    // The app still works without reminders ringing; init is retried later.
+    debugPrint('Notifications could not start: $e');
+  }
+
   final api = ApiClient();
   final auth = AuthProvider(api: api, tokenStore: SecureTokenStore());
   final links = LinksProvider(api: api, auth: auth);
-  final reminders = RemindersProvider(api: api, auth: auth);
+  final reminders =
+      RemindersProvider(api: api, auth: auth, scheduler: notifications);
   unawaited(auth.restoreSession());
   runApp(SaarthiApp(auth: auth, links: links, reminders: reminders));
 }
