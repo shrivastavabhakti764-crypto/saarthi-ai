@@ -13,6 +13,9 @@ from app.schedule import IST, slot_status, slots_for_day, utcnow
 
 router = APIRouter(prefix="/reminders", tags=["schedule"])
 
+# A slot can be answered from this long before its time. Later is always fine.
+EARLY_WINDOW = timedelta(minutes=60)
+
 
 def _require_senior(user: User) -> None:
     if user.role != "senior":
@@ -103,6 +106,11 @@ def log_slot(
         )
 
     now = utcnow()
+    if slot - EARLY_WINDOW > now:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="It is too early to answer this reminder",
+        )
 
     def find_log() -> ReminderLog | None:
         return db.scalar(
