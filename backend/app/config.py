@@ -23,6 +23,9 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     jwt_expire_minutes: int = 43200
 
+    # The background job that records missed doses. Tests switch it off.
+    scheduler_enabled: bool = True
+
     @property
     def database_url(self) -> URL:
         # URL.create handles special characters in the password safely

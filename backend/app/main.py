@@ -1,11 +1,26 @@
+from contextlib import asynccontextmanager
+
 from fastapi import Depends, FastAPI, HTTPException
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from app.config import settings
 from app.db import get_db
 from app.routers import auth, links, reminders, schedule, users
+from app.scheduler import start_scheduler
 
-app = FastAPI(title="Saarthi.AI API", version="0.1.0")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    scheduler = start_scheduler() if settings.scheduler_enabled else None
+    try:
+        yield
+    finally:
+        if scheduler is not None:
+            scheduler.shutdown(wait=False)
+
+
+app = FastAPI(title="Saarthi.AI API", version="0.1.0", lifespan=lifespan)
 
 app.include_router(auth.router)
 app.include_router(users.router)

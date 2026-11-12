@@ -9,6 +9,9 @@ from app.config import settings
 from app.db import Base, get_db
 from app.main import app
 
+# The background job would touch the real database, so tests never start it.
+settings.scheduler_enabled = False
+
 # Tests ALWAYS run on a separate database, never on the real "saarthi" one.
 TEST_DB_NAME = "saarthi_test"
 test_engine = create_engine(
