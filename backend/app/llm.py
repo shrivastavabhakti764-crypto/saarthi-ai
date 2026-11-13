@@ -42,13 +42,42 @@ class LlmResult(BaseModel):
     @classmethod
     def lowercase(cls, v):
         return v.strip().lower() if isinstance(v, str) else v
+    # Common Hindi words written in English letters. Used only to tell Hinglish
+# from English; words that are also English (main, to, me, hi) are left out.
+_HINGLISH_WORDS = {
+    "hai", "hain", "hoon", "hun", "hu", "ho", "hoga", "nahi", "nahin", "kya",
+    "kyun", "kyon", "kaise", "kaisa", "kaisi", "aap", "aapko", "aapka",
+    "aapki", "mujhe", "mera", "meri", "mere", "mein", "ko", "ka", "ki", "ke",
+    "bhi", "aur", "par", "toh", "tha", "thi", "raha", "rahi", "rahe", "abhi",
+    "bahut", "accha", "achha", "theek", "thik", "namaste", "dard", "chahiye",
+    "karo", "karna", "kar", "lag", "lagta", "lagti", "aaj", "kal", "subah",
+    "bete", "beta", "madad", "bulao", "kuch", "koi", "yeh", "woh", "wo", "ye",
+    "hum", "tum", "tumhe", "unse", "dawai", "haan", "bilkul", "ji", "akela",
+    "akeli", "mausam", "khana", "baat", "kaun", "kahan", "kab", "kitna",
+}
 
+
+def _language_hint(message: str) -> str:
+    """One line appended to the latest message so the model answers in the
+    language of THIS message, not the language of the older chat history."""
+    if re.search(r"[\u0900-\u097F]", message):
+            return ("(Instruction: the message above is in Hindi written in "
+                "Devanagari script. Write your ENTIRE reply in Devanagari "
+                "script, for example आप, मैं, है. Do NOT write Hindi words in "
+                "English letters. Set language to hindi.)")
+    words = set(re.findall(r"[a-z]+", message.lower()))
+    if words & _HINGLISH_WORDS:
+        return ("(Instruction: the message above is Hinglish, Hindi written in "
+                "English letters. Reply in Hinglish and set language to hinglish.)")
+    return ("(Instruction: the message above is in English. Reply only in "
+            "English, even if earlier messages were in Hindi or Hinglish, and "
+            "set language to english.)")
 
 def _contents(history: list[tuple[str, str]], message: str) -> list[dict]:
     """Turns (sender, text) pairs into Gemini turns: same speaker twice in a
     row is merged, and the conversation must start with the person."""
     contents: list[dict] = []
-    for sender, text in [*history, ("senior", message)]:
+    for sender, text in [*history, ("senior", f"{message}\n{_language_hint(message)}")]:
         role = "user" if sender == "senior" else "model"
         if contents and contents[-1]["role"] == role:
             contents[-1]["parts"][0]["text"] += "\n" + text

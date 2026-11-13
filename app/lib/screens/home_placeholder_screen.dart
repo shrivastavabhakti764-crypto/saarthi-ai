@@ -10,6 +10,7 @@ import '../services/links_provider.dart';
 import '../services/reminders_provider.dart';
 import '../theme/app_theme.dart';
 import 'add_nominee_screen.dart';
+import 'chat_screen.dart';
 import 'link_code_entry_screen.dart';
 import 'reminders_screen.dart';
 
@@ -112,6 +113,13 @@ class _HomePlaceholderScreenState extends State<HomePlaceholderScreen> {
               Text(user.phone,
                   style: textTheme.bodySmall, textAlign: TextAlign.center),
               if (user.isSenior) ...[
+                const SizedBox(height: 24),
+                ElevatedButton(
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const ChatScreen()),
+                  ),
+                  child: const Text('Talk to Saarthi'),
+                ),
                 const SizedBox(height: 32),
                 Text('Today', style: textTheme.titleLarge),
                 const SizedBox(height: 12),

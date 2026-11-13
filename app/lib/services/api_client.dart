@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../config.dart';
+import '../models/chat_message.dart';
 import '../models/app_user.dart';
 import '../models/link.dart';
 import '../models/reminder.dart';
@@ -21,7 +22,7 @@ class ApiClient {
   ApiClient({http.Client? client}) : _client = client ?? http.Client();
 
   final http.Client _client;
-  static const _timeout = Duration(seconds: 10);
+  static const _timeout = Duration(seconds: 25);
   static const _jsonHeaders = {'Content-Type': 'application/json'};
 
   Uri _uri(String path) => Uri.parse('${AppConfig.apiBaseUrl}$path');
@@ -260,5 +261,22 @@ class ApiClient {
       ),
     );
     return TodaySlot.fromJson(json);
+  }
+  Future<ChatReply> sendChat(String token, String message) async {
+    final json = await _request(() => _client.post(
+          _uri('/chat'),
+          headers: {..._jsonHeaders, ..._bearer(token)},
+          body: jsonEncode({'message': message, 'input_mode': 'text'}),
+        ));
+    return ChatReply.fromJson(json);
+  }
+
+  Future<List<ChatMessage>> chatHistory(String token) async {
+    final list = await _requestList(
+      () => _client.get(_uri('/chat/history'), headers: _bearer(token)),
+    );
+    return list
+        .map((e) => ChatMessage.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 }
