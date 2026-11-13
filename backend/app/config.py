@@ -26,6 +26,11 @@ class Settings(BaseSettings):
     # The background job that records missed doses. Tests switch it off.
     scheduler_enabled: bool = True
 
+    # The AI companion. Without a key the app still answers with a canned reply.
+    gemini_api_key: str = ""
+    gemini_model: str = "gemini-2.5-flash"
+    gemini_fallback_model: str = "gemini-2.5-flash-lite"
+
     @property
     def database_url(self) -> URL:
         # URL.create handles special characters in the password safely
