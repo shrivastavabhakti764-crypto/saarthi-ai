@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.db import get_db
-from app.routers import auth, chat, links, reminders, schedule, users
+from app.routers import auth, chat, escalations, links, reminders, schedule, users
 from app.scheduler import start_scheduler
 
 
@@ -28,6 +28,7 @@ app.include_router(links.router)
 app.include_router(reminders.router)
 app.include_router(schedule.router)
 app.include_router(chat.router)
+app.include_router(escalations.router)
 
 
 @app.get("/health")

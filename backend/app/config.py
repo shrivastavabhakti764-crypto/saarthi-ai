@@ -30,6 +30,9 @@ class Settings(BaseSettings):
     gemini_api_key: str = ""
     gemini_model: str = "gemini-2.5-flash"
     gemini_fallback_model: str = "gemini-2.5-flash-lite"
+    
+    # "Are you okay?" waits this long before the family is told (TRD 2.6).
+    escalation_grace_minutes: int = 10
 
     @property
     def database_url(self) -> URL:

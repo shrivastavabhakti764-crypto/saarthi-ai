@@ -74,6 +74,7 @@ def test_a_message_gets_a_reply_and_both_are_saved(client, fake_llm):
         "emotion": "happy",
         "symptom_detected": False,
         "asked_for_help": False,
+        "escalation_id": None,
     }
     saved = client.get("/chat/history", headers=auth(senior)).json()
     assert [(m["sender"], m["message_text"]) for m in saved] == [

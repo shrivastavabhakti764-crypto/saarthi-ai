@@ -116,6 +116,21 @@ class _ChatViewState extends State<_ChatView> {
                               _Bubble(message: chat.messages[i]),
                         ),
             ),
+            if (chat.escalation != null)
+              _CheckInCard(
+                busy: chat.responding,
+                onAnswer: (answer) async {
+                  await context.read<ChatProvider>().answerCheckIn(answer);
+                  _scrollToEnd();
+                },
+              )
+            else if (chat.notice != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+                child: Text(chat.notice!,
+                    style: textTheme.titleMedium,
+                    textAlign: TextAlign.center),
+              ),
             if (chat.error != null)
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
@@ -160,6 +175,56 @@ class _ChatViewState extends State<_ChatView> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// "Are you okay?" with two big buttons.
+class _CheckInCard extends StatelessWidget {
+  const _CheckInCard({required this.busy, required this.onAnswer});
+
+  final bool busy;
+  final void Function(String answer) onAnswer;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.primary, width: 2),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text('Are you okay?',
+              style: textTheme.titleLarge, textAlign: TextAlign.center),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.success,
+                  ),
+                  onPressed: busy ? null : () => onAnswer('ok'),
+                  child: const Text("I'm okay"),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: busy ? null : () => onAnswer('need_help'),
+                  child: const Text('I need help'),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

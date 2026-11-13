@@ -23,6 +23,8 @@ class ChatReply(BaseModel):
     emotion: str
     symptom_detected: bool
     asked_for_help: bool
+    # Set when an "Are you okay?" is waiting for the senior's answer.
+    escalation_id: int | None = None
 
 
 class ChatMessageOut(BaseModel):

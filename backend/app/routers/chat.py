@@ -7,8 +7,10 @@ from sqlalchemy.orm import Session
 from app.chat_schemas import ChatMessageOut, ChatReply, ChatRequest
 from app.db import get_db
 from app.deps import get_current_user
+from app.escalation import maybe_start
 from app.llm import generate_reply
 from app.models import ChatMessage, SymptomLog, User
+from app.schedule import utcnow
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
@@ -69,17 +71,20 @@ def chat(
     db.flush()  # gives the messages their ids
 
     has_symptom = result.symptom_detected and bool(result.symptom_key.strip())
+    escalation = None
     if has_symptom or result.asked_for_help:
-        db.add(
-            SymptomLog(
-                senior_id=senior_id,
-                chat_message_id=senior_message.id,
-                symptom_text=result.symptom_text.strip() or body.message,
-                symptom_key=_clean_key(result.symptom_key) if has_symptom else "help_request",
-                asked_for_help=result.asked_for_help,
-                flag="help_requested" if result.asked_for_help else "noted",
-            )
+        symptom = SymptomLog(
+            senior_id=senior_id,
+            chat_message_id=senior_message.id,
+            symptom_text=result.symptom_text.strip() or body.message,
+            symptom_key=_clean_key(result.symptom_key) if has_symptom else "help_request",
+            asked_for_help=result.asked_for_help,
+            flag="help_requested" if result.asked_for_help else "noted",
         )
+        db.add(symptom)
+        db.flush()
+        escalation = maybe_start(db, symptom, utcnow())
+    escalation_id = escalation.id if escalation is not None else None
     db.commit()
 
     return ChatReply(
@@ -88,6 +93,7 @@ def chat(
         emotion=result.emotion,
         symptom_detected=has_symptom,
         asked_for_help=result.asked_for_help,
+        escalation_id=escalation_id,
     )
 
 

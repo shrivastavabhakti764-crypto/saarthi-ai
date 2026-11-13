@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 
 import '../config.dart';
 import '../models/chat_message.dart';
+import '../models/escalation.dart';
 import '../models/app_user.dart';
 import '../models/link.dart';
 import '../models/reminder.dart';
@@ -278,5 +279,25 @@ class ApiClient {
     return list
         .map((e) => ChatMessage.fromJson(e as Map<String, dynamic>))
         .toList();
+  }
+    Future<Escalation?> activeEscalation(String token) async {
+    final json = await _send(
+      () => _client.get(_uri('/escalations/active'), headers: _bearer(token)),
+    );
+    if (json is Map<String, dynamic>) return Escalation.fromJson(json);
+    return null;
+  }
+
+  Future<Escalation> respondToEscalation(
+    String token,
+    int escalationId,
+    String answer,
+  ) async {
+    final json = await _request(() => _client.post(
+          _uri('/escalations/$escalationId/respond'),
+          headers: {..._jsonHeaders, ..._bearer(token)},
+          body: jsonEncode({'answer': answer}),
+        ));
+    return Escalation.fromJson(json);
   }
 }

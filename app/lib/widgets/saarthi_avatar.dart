@@ -50,7 +50,7 @@ class SaarthiAvatar extends StatelessWidget {
               fit: BoxFit.cover,
               alignment: Alignment.topCenter,
               gaplessPlayback: true,
-              errorBuilder: (_, __, ___) =>
+              errorBuilder: (_, _, _) =>
                   Icon(_icon, size: size * 0.7, color: _color),
             ),
           ),

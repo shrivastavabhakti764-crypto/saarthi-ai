@@ -34,6 +34,7 @@ class ChatReply {
     required this.emotion,
     required this.symptomDetected,
     required this.askedForHelp,
+    this.escalationId,
   });
 
   final String reply;
@@ -42,11 +43,15 @@ class ChatReply {
   final bool symptomDetected;
   final bool askedForHelp;
 
+  /// Set when an "Are you okay?" is waiting for the senior's answer.
+  final int? escalationId;
+
   factory ChatReply.fromJson(Map<String, dynamic> json) => ChatReply(
         reply: json['reply'] as String,
         language: json['language'] as String,
         emotion: json['emotion'] as String,
         symptomDetected: json['symptom_detected'] as bool,
         askedForHelp: json['asked_for_help'] as bool,
+        escalationId: json['escalation_id'] as int?,
       );
 }
