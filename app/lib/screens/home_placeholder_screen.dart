@@ -10,6 +10,7 @@ import '../services/links_provider.dart';
 import '../services/reminders_provider.dart';
 import '../theme/app_theme.dart';
 import 'add_nominee_screen.dart';
+import 'alerts_screen.dart';
 import 'chat_screen.dart';
 import 'link_code_entry_screen.dart';
 import 'reminders_screen.dart';
@@ -182,6 +183,15 @@ class _HomePlaceholderScreenState extends State<HomePlaceholderScreen> {
                             )
                         : null,
                   ),
+              if (user.isNominee) ...[
+                const SizedBox(height: 24),
+                ElevatedButton(
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const AlertsScreen()),
+                  ),
+                  child: const Text('Alerts'),
+                ),
+              ],
               const SizedBox(height: 24),
               ElevatedButton(
                 onPressed: () => _open(
