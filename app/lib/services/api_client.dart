@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import '../config.dart';
 import '../models/chat_message.dart';
 import '../models/escalation.dart';
+import '../models/alert_item.dart';
 import '../models/app_user.dart';
 import '../models/link.dart';
 import '../models/reminder.dart';
@@ -299,5 +300,13 @@ class ApiClient {
           body: jsonEncode({'answer': answer}),
         ));
     return Escalation.fromJson(json);
+  }
+  Future<List<AlertItem>> listAlerts(String token) async {
+    final list = await _requestList(
+      () => _client.get(_uri('/alerts'), headers: _bearer(token)),
+    );
+    return list
+        .map((e) => AlertItem.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 }
