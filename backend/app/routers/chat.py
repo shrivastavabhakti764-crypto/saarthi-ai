@@ -1,4 +1,5 @@
 import re
+from datetime import timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
@@ -7,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.chat_schemas import ChatMessageOut, ChatReply, ChatRequest
 from app.db import get_db
 from app.deps import get_current_user
-from app.escalation import maybe_start
+from app.escalation import get_active, maybe_start
 from app.llm import generate_reply
 from app.models import ChatMessage, SymptomLog, User
 from app.schedule import utcnow
@@ -15,6 +16,7 @@ from app.schedule import utcnow
 router = APIRouter(prefix="/chat", tags=["chat"])
 
 HISTORY_FOR_MODEL = 8
+RESEND_WINDOW = timedelta(minutes=3)
 
 
 def _require_senior_with_consent(user: User) -> None:
@@ -33,6 +35,23 @@ def _require_senior_with_consent(user: User) -> None:
 def _clean_key(key: str) -> str:
     cleaned = re.sub(r"[^a-z0-9]+", "_", key.lower()).strip("_")
     return cleaned[:50] or "unknown"
+
+def _is_resend(db: Session, senior_id: int, key: str, message: str, this_id: int) -> bool:
+    """The same words sent again within a few minutes (for example after an
+    error) are one mention, not two."""
+    found = db.scalar(
+        select(SymptomLog.id)
+        .join(ChatMessage, ChatMessage.id == SymptomLog.chat_message_id)
+        .where(
+            SymptomLog.senior_id == senior_id,
+            SymptomLog.symptom_key == key,
+            SymptomLog.created_at > utcnow() - RESEND_WINDOW,
+            ChatMessage.message_text == message,
+            ChatMessage.id != this_id,
+        )
+        .limit(1)
+    )
+    return found is not None
 
 
 @router.post("", response_model=ChatReply)
@@ -73,18 +92,23 @@ def chat(
     has_symptom = result.symptom_detected and bool(result.symptom_key.strip())
     escalation = None
     if has_symptom or result.asked_for_help:
-        symptom = SymptomLog(
-            senior_id=senior_id,
-            chat_message_id=senior_message.id,
-            symptom_text=result.symptom_text.strip() or body.message,
-            symptom_key=_clean_key(result.symptom_key) if has_symptom else "help_request",
-            asked_for_help=result.asked_for_help,
-            flag="help_requested" if result.asked_for_help else "noted",
-        )
-        db.add(symptom)
-        db.flush()
-        escalation = maybe_start(db, symptom, utcnow())
-    escalation_id = escalation.id if escalation is not None else None
+        key = _clean_key(result.symptom_key) if has_symptom else "help_request"
+        if _is_resend(db, senior_id, key, body.message, senior_message.id):
+            # Same message again: already logged, so it must not count twice.
+            escalation = get_active(db, senior_id)
+        else:
+            symptom = SymptomLog(
+                senior_id=senior_id,
+                chat_message_id=senior_message.id,
+                symptom_text=result.symptom_text.strip() or body.message,
+                symptom_key=key,
+                asked_for_help=result.asked_for_help,
+                flag="help_requested" if result.asked_for_help else "noted",
+            )
+            db.add(symptom)
+            db.flush()
+            escalation = maybe_start(db, symptom, utcnow())
+    escalation_id = escalation.id if escalation is not None else None 
     db.commit()
 
     return ChatReply(

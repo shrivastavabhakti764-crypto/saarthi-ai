@@ -86,3 +86,11 @@ def test_no_answer_in_time_escalates(client, fake_llm):
         esc = db.get(Escalation, esc_id)
         assert esc.status == "escalated"
         assert "did not get a reply" in esc.summary_text
+
+
+def test_same_message_sent_again_counts_once(client, fake_llm):
+    token = senior_who_agreed(client)
+    mention(fake_llm)
+    say(client, token, "I have a headache")
+    again = say(client, token, "I have a headache").json()
+    assert again["escalation_id"] is None
