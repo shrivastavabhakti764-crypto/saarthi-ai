@@ -27,3 +27,4 @@ local.properties
 Thumbs.db
 .DS_Store
 .vscode/
+backend/firebase-key.json

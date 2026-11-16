@@ -10,6 +10,7 @@ import 'services/links_provider.dart';
 import 'services/notification_answers.dart';
 import 'services/notification_service.dart';
 import 'services/reminders_provider.dart';
+import 'services/push_service.dart';
 import 'services/token_store.dart';
 import 'theme/app_theme.dart';
 
@@ -42,6 +43,8 @@ Future<void> main() async {
 
   AppLifecycleListener(onResume: () => unawaited(sendKeptAnswers()));
   unawaited(auth.restoreSession().then((_) => sendKeptAnswers()));
+  final push = PushService(api: api, auth: auth);
+  unawaited(push.start());
 
   runApp(SaarthiApp(auth: auth, links: links, reminders: reminders));
 }

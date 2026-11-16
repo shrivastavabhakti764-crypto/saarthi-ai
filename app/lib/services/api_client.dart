@@ -309,4 +309,13 @@ class ApiClient {
         .map((e) => AlertItem.fromJson(e as Map<String, dynamic>))
         .toList();
   }
+    Future<void> saveFcmToken(String token, String fcmToken) async {
+    await _send(
+      () => _client.put(
+        _uri('/me/fcm-token'),
+        headers: {..._jsonHeaders, ..._bearer(token)},
+        body: jsonEncode({'token': fcmToken}),
+      ),
+    );
+  }
 }

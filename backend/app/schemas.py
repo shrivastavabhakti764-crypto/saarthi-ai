@@ -110,3 +110,7 @@ class LinkOut(BaseModel):
     whatsapp_number: str | None
     whatsapp_opt_in: bool
     created_at: datetime
+
+
+class FcmTokenIn(BaseModel):
+    token: str = Field(min_length=20, max_length=4096)
