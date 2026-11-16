@@ -11,7 +11,16 @@ from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
 from app.config import settings
-from app.models import Escalation, Reminder, ReminderLog, SymptomLog, User
+from app.models import (
+    Escalation,
+    NomineeLink,
+    Notification,
+    Reminder,
+    ReminderLog,
+    SymptomLog,
+    User,
+)
+from app.push import send_push
 
 log = logging.getLogger("uvicorn.error")
 
@@ -159,8 +168,44 @@ def resolve_ok(db: Session, esc: Escalation, now: datetime) -> bool:
     return row is not None
 
 
+def notify_nominees(
+    db: Session, esc: Escalation, summary: str, now: datetime
+) -> None:
+    """Pushes the summary to every nominee linked to this senior and records
+    one row per nominee in `notifications`. Never raises: a push problem must
+    not stop the escalation itself."""
+    try:
+        senior = db.get(User, esc.senior_id)
+        senior_name = senior.name if senior else "your family member"
+        nominees = db.scalars(
+            select(User)
+            .join(NomineeLink, NomineeLink.nominee_id == User.id)
+            .where(NomineeLink.senior_id == esc.senior_id)
+        ).all()
+        for nominee in nominees:
+            if not nominee.fcm_token:
+                sent, error = False, "no push token"
+            else:
+                sent, error = send_push(
+                    nominee.fcm_token, f"Alert about {senior_name}", summary
+                )
+            db.add(
+                Notification(
+                    escalation_id=esc.id,
+                    nominee_id=nominee.id,
+                    channel="push",
+                    summary_text=summary,
+                    status="sent" if sent else "failed",
+                    error=error,
+                    sent_at=now if sent else None,
+                )
+            )
+    except Exception:
+        log.exception("Could not notify nominees for escalation %s", esc.id)
+
+
 def escalate(db: Session, esc: Escalation, now: datetime, *, by_senior: bool) -> bool:
-    """Moves to 'escalated' and stores the summary for the family."""
+    """Moves to 'escalated', stores the summary and pushes it to the family."""
     summary = build_summary(db, esc, now, by_senior)
     row = db.execute(
         update(Escalation)
@@ -168,7 +213,10 @@ def escalate(db: Session, esc: Escalation, now: datetime, *, by_senior: bool) ->
         .values(status="escalated", summary_text=summary)
         .returning(Escalation.id)
     ).first()
-    return row is not None
+    if row is None:
+        return False
+    notify_nominees(db, esc, summary, now)
+    return True
 
 
 def process_due(db: Session, now: datetime) -> int:
