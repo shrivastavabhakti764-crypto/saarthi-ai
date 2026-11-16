@@ -1,4 +1,8 @@
 class AppConfig {
-  // With `adb reverse tcp:8000 tcp:8000`, the phone's 127.0.0.1:8000 reaches the laptop.
-  static const apiBaseUrl = 'http://127.0.0.1:8000';
+  /// Render pe deployed backend. Laptop pe test karna ho toh:
+  /// flutter run --dart-define=API_BASE_URL=http://127.0.0.1:8000
+  static const apiBaseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: 'https://saarthi-ai-t46i.onrender.com',
+  );
 }

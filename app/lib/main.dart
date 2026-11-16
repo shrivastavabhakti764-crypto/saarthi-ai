@@ -70,6 +70,7 @@ class SaarthiApp extends StatelessWidget {
         ChangeNotifierProvider<RemindersProvider>.value(value: reminders),
       ],
       child: MaterialApp(
+        navigatorKey: rootNavigatorKey,
         title: 'Saarthi.AI',
         debugShowCheckedModeBanner: false,
         theme: buildAppTheme(),
