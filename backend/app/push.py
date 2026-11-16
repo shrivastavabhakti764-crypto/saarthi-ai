@@ -1,10 +1,13 @@
 """Send a push notification through Firebase Cloud Messaging (HTTP v1 API).
 
-Uses the service-account key in backend/firebase-key.json (never committed).
+The service-account key comes from the FIREBASE_KEY_JSON environment variable
+(used on Render) or, if that is not set, from backend/firebase-key.json
+(local development). The key is never committed.
 """
 
 import json
 import logging
+import os
 from pathlib import Path
 
 import google.auth.transport.requests
@@ -20,13 +23,21 @@ _credentials = None
 _project_id = None
 
 
+def _load_key_info() -> dict:
+    raw = os.environ.get("FIREBASE_KEY_JSON")
+    if raw:
+        return json.loads(raw)
+    return json.loads(KEY_PATH.read_text(encoding="utf-8"))
+
+
 def _load():
     global _credentials, _project_id
     if _credentials is None:
-        _credentials = service_account.Credentials.from_service_account_file(
-            str(KEY_PATH), scopes=SCOPES
+        info = _load_key_info()
+        _credentials = service_account.Credentials.from_service_account_info(
+            info, scopes=SCOPES
         )
-        _project_id = json.loads(KEY_PATH.read_text())["project_id"]
+        _project_id = info["project_id"]
     if not _credentials.valid:
         _credentials.refresh(google.auth.transport.requests.Request())
     return _credentials, _project_id
@@ -48,7 +59,7 @@ def send_push(fcm_token: str, title: str, body: str) -> tuple[bool, str | None]:
             },
             timeout=10,
         )
-    except Exception as exc:  # network, missing key file, bad key...
+    except Exception as exc:  # network, missing key, bad key...
         log.warning("Push failed: %s", exc)
         return False, str(exc)[:200]
     if response.status_code == 200:
