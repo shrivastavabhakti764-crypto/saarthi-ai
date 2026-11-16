@@ -24,7 +24,7 @@ class ApiClient {
   ApiClient({http.Client? client}) : _client = client ?? http.Client();
 
   final http.Client _client;
-  static const _timeout = Duration(seconds: 25);
+  static const _timeout = Duration(seconds: 75);
   static const _jsonHeaders = {'Content-Type': 'application/json'};
 
   Uri _uri(String path) => Uri.parse('${AppConfig.apiBaseUrl}$path');
